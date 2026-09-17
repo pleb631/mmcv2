@@ -1,5 +1,7 @@
 import mmcv2
 import pytest
+from mmcv2.cnn import MODELS, build_model_from_cfg
+from torch import nn
 
 
 def test_registry():
@@ -219,3 +221,37 @@ def test_build_from_cfg():
     with pytest.raises(TypeError):
         cfg = {"type": "ResNet", "non_existing_arg": 50}
         model = mmcv2.build_from_cfg(cfg, BACKBONES)
+
+
+def test_model_registry_uses_its_specialized_builder():
+    backbones = mmcv2.Registry("backbone", build_func=build_model_from_cfg)
+
+    @backbones.register_module()
+    class ResNet(nn.Module):
+        def __init__(self, depth, stages=4):
+            super().__init__()
+            self.depth = depth
+            self.stages = stages
+
+        def forward(self, x):
+            return x
+
+    @backbones.register_module()
+    class ResNeXt(ResNet):
+        pass
+
+    models = backbones.build([
+        {"type": "ResNet", "depth": 50},
+        {"type": "ResNeXt", "depth": 50, "stages": 3},
+    ])
+    assert isinstance(models, nn.Sequential)
+    assert (models[0].depth, models[0].stages) == (50, 4)
+    assert (models[1].depth, models[1].stages) == (50, 3)
+
+    inherited_models = mmcv2.Registry("models", parent=MODELS, scope="new")
+    assert inherited_models.build_func is build_model_from_cfg
+
+    def custom_builder(cfg):
+        return cfg
+
+    assert mmcv2.Registry("models", parent=MODELS, build_func=custom_builder).build_func is custom_builder

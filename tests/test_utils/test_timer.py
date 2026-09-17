@@ -1,4 +1,4 @@
-import time
+from unittest.mock import patch
 
 import mmcv2
 import pytest
@@ -14,12 +14,11 @@ def test_timer_init():
 
 
 def test_timer_run():
-    timer = mmcv2.Timer()
-    time.sleep(1)
-    assert abs(timer.since_start() - 1) < 1e-2
-    time.sleep(1)
-    assert abs(timer.since_last_check() - 1) < 1e-2
-    assert abs(timer.since_start() - 2) < 1e-2
+    with patch("mmcv2.utils.timer.time", side_effect=[0, 0, 1, 2, 2, 2]):
+        timer = mmcv2.Timer()
+        assert timer.since_start() == 1
+        assert timer.since_last_check() == 1
+        assert timer.since_start() == 2
     timer = mmcv2.Timer(False)
     with pytest.raises(mmcv2.TimerError):
         timer.since_start()
@@ -28,11 +27,13 @@ def test_timer_run():
 
 
 def test_timer_context(capsys):
-    with mmcv2.Timer():
-        time.sleep(1)
+    with patch("mmcv2.utils.timer.time", side_effect=[0, 0, 0, 1, 1]):
+        with mmcv2.Timer():
+            pass
     out, _ = capsys.readouterr()
-    assert abs(float(out) - 1) < 1e-2
-    with mmcv2.Timer(print_tmpl="time: {:.1f}s"):
-        time.sleep(1)
+    assert float(out) == 1
+    with patch("mmcv2.utils.timer.time", side_effect=[0, 0, 0, 1, 1]):
+        with mmcv2.Timer(print_tmpl="time: {:.1f}s"):
+            pass
     out, _ = capsys.readouterr()
     assert out == "time: 1.0s\n"

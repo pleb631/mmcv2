@@ -1,9 +1,11 @@
 from collections import OrderedDict
+from unittest.mock import patch
 
 import pytest
 import torch
 from mmcv2.parallel.registry import MODULE_WRAPPERS
 from mmcv2.runner.checkpoint import (
+    _load_checkpoint,
     _load_checkpoint_with_prefix,
     get_state_dict,
     load_checkpoint,
@@ -392,3 +394,39 @@ def test_load_from_local(tmp_path):
     save_checkpoint(model, str(checkpoint_path))
     checkpoint = load_from_local(str(checkpoint_path), map_location=None)
     assert_tensor_equal(checkpoint["state_dict"]["block.conv.weight"], model.block.conv.weight)
+
+
+def _load_checkpoint_from_http(url, map_location=None):
+    return "url:" + url
+
+
+def _load_checkpoint_from_url(url, map_location=None, model_dir=None, weights_only=True):
+    return _load_checkpoint_from_http(url)
+
+
+def _load_checkpoint_from_file(filepath, map_location=None, weights_only=True):
+    return "local:" + filepath
+
+
+@patch("mmcv2.runner.checkpoint.load_from_http", _load_checkpoint_from_http)
+@patch("mmcv2.runner.checkpoint.load_state_dict_from_url", _load_checkpoint_from_url)
+@patch(
+    "mmcv2.runner.checkpoint.get_torchvision_models",
+    new=lambda: {
+        "resnet50.imagenet1k_v1": "https://download.pytorch.org/models/resnet50-0676ba61.pth",
+        "resnet50.default": "https://download.pytorch.org/models/resnet50-0676ba61.pth",
+    },
+)
+@patch("torch.load", _load_checkpoint_from_file)
+def test_load_external_checkpoint_urls(tmp_path):
+    expected_url = "url:https://download.pytorch.org/models/resnet50-0676ba61.pth"
+    assert _load_checkpoint("torchvision://resnet50.imagenet1k_v1") == expected_url
+    assert _load_checkpoint("torchvision://ResNet50_Weights.IMAGENET1K_V1") == expected_url
+    assert _load_checkpoint("torchvision://resnet50.default") == expected_url
+    assert _load_checkpoint("http://localhost/train.pth") == "url:http://localhost/train.pth"
+
+    with pytest.raises(FileNotFoundError, match="train.pth can not be found."):
+        _load_checkpoint("train.pth")
+    local_path = tmp_path / "test.pth"
+    local_path.touch()
+    assert _load_checkpoint(str(local_path)) == f"local:{local_path}"

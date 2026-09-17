@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 import torch
+from mmcv2.cnn import fuse_conv_bn
 from mmcv2.cnn.bricks import CONV_LAYERS, ConvModule, HSigmoid
 from torch import nn
 
@@ -43,6 +44,17 @@ class ExampleConv(nn.Module):
 
     def init_weights(self):
         nn.init.constant_(self.conv0.weight, 0)
+
+
+def test_fuse_conv_bn():
+    inputs = torch.rand((1, 3, 5, 5))
+    modules = nn.Sequential(
+        nn.BatchNorm2d(3),
+        ConvModule(3, 5, 3, norm_cfg={"type": "BN"}),
+        ConvModule(5, 5, 3, norm_cfg={"type": "BN"}),
+    )
+    fused_modules = fuse_conv_bn(modules)
+    assert torch.equal(modules(inputs), fused_modules(inputs))
 
 
 def test_conv_module():

@@ -1,12 +1,18 @@
 import numpy as np
 import pytest
 import torch
+import torch.nn.functional as F
 from mmcv2.cnn.bricks import (
     ACTIVATION_LAYERS,
     CONV_LAYERS,
+    Conv2dAdaptivePadding,
+    HSigmoid,
+    HSwish,
     NORM_LAYERS,
     PADDING_LAYERS,
     PLUGIN_LAYERS,
+    Scale,
+    Swish,
     build_activation_layer,
     build_conv_layer,
     build_norm_layer,
@@ -190,6 +196,58 @@ def test_build_activation_layer():
     act = build_activation_layer({"type": "Clamp", "max": 0})
     y = act(x)
     assert np.logical_and((y >= -1).numpy(), (y <= 0).numpy()).all()
+
+
+def test_activation_layer_behaviors():
+    x = torch.randn(1, 3, 64, 64)
+
+    swish = Swish()
+    assert torch.equal(swish(x), F.silu(x))
+
+    hswish = HSwish(inplace=True)
+    assert hswish.act.inplace
+    hswish = HSwish()
+    assert not hswish.act.inplace
+    assert torch.equal(hswish(x), F.hardswish(x))
+
+    silu = build_activation_layer({"type": "SiLU"})
+    assert torch.allclose(silu(x), x * torch.sigmoid(x))
+    inplace_x = x.clone()
+    inplace_silu = build_activation_layer({"type": "SiLU", "inplace": True})
+    expected = inplace_x * torch.sigmoid(inplace_x)
+    assert torch.allclose(inplace_silu(inplace_x), expected)
+    assert inplace_silu(inplace_x) is inplace_x
+
+    with pytest.raises(AssertionError):
+        HSigmoid(divisor=0)
+    assert torch.equal(HSigmoid()(x), F.hardsigmoid(x))
+    custom_hsigmoid = HSigmoid(bias=1, divisor=2, min_value=0, max_value=1)
+    expected = torch.clamp((x + 1) / 2, min=0, max=1)
+    assert torch.equal(custom_hsigmoid(x), expected)
+
+
+def test_scale_layer():
+    x = torch.rand(1, 3, 64, 64)
+    for initial_value in (1.0, 10.0):
+        scale = Scale(initial_value)
+        assert scale.scale.item() == initial_value
+        assert scale.scale.dtype == torch.float
+        assert scale(x).shape == x.shape
+
+
+@pytest.mark.parametrize(
+    ("input_size", "stride", "expected_size"),
+    [
+        ((28, 28), 1, (28, 28)),
+        ((13, 13), 1, (13, 13)),
+        ((28, 28), 2, (14, 14)),
+        ((13, 13), 2, (7, 7)),
+    ],
+)
+def test_conv2d_adaptive_padding(input_size, stride, expected_size):
+    inputs = torch.rand(1, 3, *input_size)
+    output = Conv2dAdaptivePadding(3, 3, kernel_size=3, stride=stride)(inputs)
+    assert output.shape == torch.Size((1, 3, *expected_size))
 
 
 def test_build_padding_layer():
