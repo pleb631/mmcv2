@@ -31,7 +31,12 @@ if torch.__version__ == "parrots":
 
 
 def _assert_moments(tensor, mean, std, *, rel=0.2, abs=0.05):
-    assert tensor.mean().item() == pytest.approx(mean, abs=abs)
+    # The standard error of a sample mean is std / sqrt(n). Account for it
+    # explicitly so checks on small tensors do not fail for valid random
+    # initializations. Four standard errors keeps the test sensitive while
+    # making a random false failure very unlikely.
+    mean_abs = max(abs, 4 * std / np.sqrt(tensor.numel()))
+    assert tensor.mean().item() == pytest.approx(mean, abs=mean_abs)
     assert tensor.std().item() == pytest.approx(std, rel=rel, abs=abs)
 
 
