@@ -1,0 +1,26 @@
+import torch
+import torch.nn.functional as F
+from torch import nn
+
+from .registry import ACTIVATION_LAYERS
+
+
+@ACTIVATION_LAYERS.register_module()
+class Swish(nn.Module):
+    """Swish Module.
+
+    This module applies the swish function:
+
+    .. math::
+        Swish(x) = x * Sigmoid(x)
+
+    Returns:
+        Tensor: The output tensor.
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply the swish activation."""
+        return F.silu(x)

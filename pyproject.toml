@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mmcv2"
+dynamic = ["version"]
+description = "Computer Vision Foundation"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+keywords = ["computer vision"]
+authors = [{name = "MMCV2 Contributors"}]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "torch>=2.10",
+    "torchvision",
+    "numpy",
+    "opencv-python>=4.6",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pyright>=1.1.400",
+    "pytest-cov>=6",
+    "ruff>=0.16",
+    "pytest",
+    "scipy",
+]
+
+[tool.setuptools]
+include-package-data = true
+zip-safe = false
+
+[tool.setuptools.dynamic]
+version = {attr = "mmcv2._version.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["mmcv2*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--strict-config", "--strict-markers"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+cache-dir = ".ruff_cache"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+"mmcv2/__init__.py" = ["F403"]
+
+[tool.pyright]
+include = ["mmcv2"]
+exclude = [".venv", ".uv-cache", "build", "dist"]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+reportUnreachable = "error"
+
+[tool.coverage.run]
+branch = true
+source = ["mmcv2"]
+
+[tool.coverage.report]
+fail_under = 50
+show_missing = true
+skip_covered = true
