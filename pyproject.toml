@@ -35,7 +35,6 @@ dev = [
     "pytest-cov>=6",
     "ruff>=0.16",
     "pytest",
-    "scipy",
 ]
 
 [tool.setuptools]

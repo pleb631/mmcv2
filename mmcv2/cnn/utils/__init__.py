@@ -1,4 +1,3 @@
-from .flops_counter import get_model_complexity_info
 from .fuse_conv_bn import fuse_conv_bn
 from .sync_bn import revert_sync_batchnorm
 from .weight_init import (
@@ -36,7 +35,6 @@ __all__ = [
     "caffe2_xavier_init",
     "constant_init",
     "fuse_conv_bn",
-    "get_model_complexity_info",
     "initialize",
     "kaiming_init",
     "normal_init",

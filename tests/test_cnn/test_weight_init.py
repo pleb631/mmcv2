@@ -1,3 +1,4 @@
+import math
 import random
 
 import numpy as np
@@ -22,7 +23,6 @@ from mmcv2.cnn import (
     uniform_init,
     xavier_init,
 )
-from scipy import stats
 from torch import nn
 
 if torch.__version__ == "parrots":
@@ -78,14 +78,30 @@ def test_trunc_normal_init():
         return (b - a) * random.random() + a
 
     def _is_trunc_normal(tensor, mean, std, a, b):
-        # scipy's trunc norm is suited for data drawn from N(0, 1),
-        # so we need to transform our data to test it using scipy.
-        z_samples = (tensor.view(-1) - mean) / std
-        z_samples = z_samples.tolist()
-        a0 = (a - mean) / std
-        b0 = (b - mean) / std
-        p_value = stats.kstest(z_samples, "truncnorm", args=(a0, b0))[1]
-        return p_value > 0.0001
+        samples = tensor.detach().flatten().double()
+        if torch.any(samples < a) or torch.any(samples > b):
+            return False
+
+        samples = ((samples - mean) / std).sort().values
+        lower = samples.new_tensor((a - mean) / std)
+        upper = samples.new_tensor((b - mean) / std)
+
+        def _normal_cdf(value):
+            return 0.5 * (1 + torch.erf(value / math.sqrt(2)))
+
+        lower_cdf = _normal_cdf(lower)
+        scale = _normal_cdf(upper) - lower_cdf
+        expected = (_normal_cdf(samples) - lower_cdf) / scale
+        count = samples.numel()
+        empirical_lower = torch.arange(count, dtype=samples.dtype) / count
+        empirical_upper = torch.arange(1, count + 1, dtype=samples.dtype) / count
+        statistic = torch.maximum(
+            (expected - empirical_lower).abs().max(),
+            (empirical_upper - expected).abs().max(),
+        )
+        # Dvoretzky-Kiefer-Wolfowitz bound at alpha=1e-4.
+        critical = math.sqrt(-0.5 * math.log(0.0001 / 2) / count)
+        return statistic.item() < critical
 
     conv_module = nn.Conv2d(3, 16, 3)
     mean = _random_float(-3, 3)
