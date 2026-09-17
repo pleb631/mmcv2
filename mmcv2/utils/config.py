@@ -2,7 +2,6 @@ import ast
 import copy
 import os
 import os.path as osp
-import platform
 import re
 import shutil
 import sys
@@ -208,17 +207,16 @@ class Config:
             raise OSError("Only py/yml/yaml/json type are supported now!")
 
         with tempfile.TemporaryDirectory() as temp_config_dir:
-            temp_config_file = tempfile.NamedTemporaryFile(dir=temp_config_dir, suffix=fileExtname)
-            if platform.system() == "Windows":
-                temp_config_file.close()
-            temp_config_name = osp.basename(temp_config_file.name)
+            temp_fd, temp_config_file = tempfile.mkstemp(dir=temp_config_dir, suffix=fileExtname)
+            os.close(temp_fd)
+            temp_config_name = osp.basename(temp_config_file)
             # Substitute predefined variables
             if use_predefined_variables:
-                Config._substitute_predefined_vars(filename, temp_config_file.name)
+                Config._substitute_predefined_vars(filename, temp_config_file)
             else:
-                shutil.copyfile(filename, temp_config_file.name)
+                shutil.copyfile(filename, temp_config_file)
             # Substitute base variables from placeholders to strings
-            base_var_dict = Config._pre_substitute_base_vars(temp_config_file.name, temp_config_file.name)
+            base_var_dict = Config._pre_substitute_base_vars(temp_config_file, temp_config_file)
 
             if filename.endswith(".py"):
                 temp_module_name = osp.splitext(temp_config_name)[0]
@@ -238,9 +236,7 @@ class Config:
             elif filename.endswith((".yml", ".yaml", ".json")):
                 from mmcv2.fileio import load
 
-                cfg_dict = load(temp_config_file.name)
-            # close temp file
-            temp_config_file.close()
+                cfg_dict = load(temp_config_file)
 
         cfg_text = filename + "\n"
         with open(filename, encoding="utf-8") as f:

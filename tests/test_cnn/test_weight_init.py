@@ -1,5 +1,4 @@
 import random
-from tempfile import TemporaryDirectory
 
 import numpy as np
 import pytest
@@ -363,32 +362,32 @@ class FooModule(nn.Module):
         self.conv2d_2 = nn.Conv2d(3, 2, 3)
 
 
-def test_pretrainedinit():
+def test_pretrainedinit(tmp_path):
     """test PretrainedInit class."""
 
     modelA = FooModule()
     constant_func = ConstantInit(val=1, bias=2, layer=["Conv2d", "Linear"])
     modelA.apply(constant_func)
     modelB = FooModule()
-    funcB = PretrainedInit(checkpoint="modelA.pth")
+    checkpoint = tmp_path / "modelA.pth"
+    funcB = PretrainedInit(checkpoint=str(checkpoint))
     modelC = nn.Linear(1, 2)
-    funcC = PretrainedInit(checkpoint="modelA.pth", prefix="linear.")
-    with TemporaryDirectory():
-        torch.save(modelA.state_dict(), "modelA.pth")
-        funcB(modelB)
-        assert torch.equal(modelB.linear.weight, torch.full(modelB.linear.weight.shape, 1.0))
-        assert torch.equal(modelB.linear.bias, torch.full(modelB.linear.bias.shape, 2.0))
-        assert torch.equal(modelB.conv2d.weight, torch.full(modelB.conv2d.weight.shape, 1.0))
-        assert torch.equal(modelB.conv2d.bias, torch.full(modelB.conv2d.bias.shape, 2.0))
-        assert torch.equal(modelB.conv2d_2.weight, torch.full(modelB.conv2d_2.weight.shape, 1.0))
-        assert torch.equal(modelB.conv2d_2.bias, torch.full(modelB.conv2d_2.bias.shape, 2.0))
+    funcC = PretrainedInit(checkpoint=str(checkpoint), prefix="linear.")
+    torch.save(modelA.state_dict(), checkpoint)
+    funcB(modelB)
+    assert torch.equal(modelB.linear.weight, torch.full(modelB.linear.weight.shape, 1.0))
+    assert torch.equal(modelB.linear.bias, torch.full(modelB.linear.bias.shape, 2.0))
+    assert torch.equal(modelB.conv2d.weight, torch.full(modelB.conv2d.weight.shape, 1.0))
+    assert torch.equal(modelB.conv2d.bias, torch.full(modelB.conv2d.bias.shape, 2.0))
+    assert torch.equal(modelB.conv2d_2.weight, torch.full(modelB.conv2d_2.weight.shape, 1.0))
+    assert torch.equal(modelB.conv2d_2.bias, torch.full(modelB.conv2d_2.bias.shape, 2.0))
 
-        funcC(modelC)
-        assert torch.equal(modelC.weight, torch.full(modelC.weight.shape, 1.0))
-        assert torch.equal(modelC.bias, torch.full(modelC.bias.shape, 2.0))
+    funcC(modelC)
+    assert torch.equal(modelC.weight, torch.full(modelC.weight.shape, 1.0))
+    assert torch.equal(modelC.bias, torch.full(modelC.bias.shape, 2.0))
 
 
-def test_initialize():
+def test_initialize(tmp_path):
     model = nn.Sequential(nn.Conv2d(3, 1, 3), nn.ReLU(), nn.Linear(1, 2))
     foonet = FooModule()
 
@@ -465,26 +464,26 @@ def test_initialize():
         "override": {"name": "conv2d_2"},
     }
 
+    checkpoint = tmp_path / "modelA.pth"
     init_cfg = {
         "type": "Pretrained",
-        "checkpoint": "modelA.pth",
+        "checkpoint": str(checkpoint),
         "override": {"type": "Constant", "name": "conv2d_2", "val": 3, "bias": 4},
     }
     modelA = FooModule()
     constant_func = ConstantInit(val=1, bias=2, layer=["Conv2d", "Linear"])
     modelA.apply(constant_func)
-    with TemporaryDirectory():
-        torch.save(modelA.state_dict(), "modelA.pth")
-        initialize(foonet, init_cfg)
-        assert torch.equal(foonet.linear.weight, torch.full(foonet.linear.weight.shape, 1.0))
-        assert torch.equal(foonet.linear.bias, torch.full(foonet.linear.bias.shape, 2.0))
-        assert torch.equal(foonet.conv2d.weight, torch.full(foonet.conv2d.weight.shape, 1.0))
-        assert torch.equal(foonet.conv2d.bias, torch.full(foonet.conv2d.bias.shape, 2.0))
-        assert torch.equal(foonet.conv2d_2.weight, torch.full(foonet.conv2d_2.weight.shape, 3.0))
-        assert torch.equal(foonet.conv2d_2.bias, torch.full(foonet.conv2d_2.bias.shape, 4.0))
+    torch.save(modelA.state_dict(), checkpoint)
+    initialize(foonet, init_cfg)
+    assert torch.equal(foonet.linear.weight, torch.full(foonet.linear.weight.shape, 1.0))
+    assert torch.equal(foonet.linear.bias, torch.full(foonet.linear.bias.shape, 2.0))
+    assert torch.equal(foonet.conv2d.weight, torch.full(foonet.conv2d.weight.shape, 1.0))
+    assert torch.equal(foonet.conv2d.bias, torch.full(foonet.conv2d.bias.shape, 2.0))
+    assert torch.equal(foonet.conv2d_2.weight, torch.full(foonet.conv2d_2.weight.shape, 3.0))
+    assert torch.equal(foonet.conv2d_2.bias, torch.full(foonet.conv2d_2.bias.shape, 4.0))
     assert init_cfg == {
         "type": "Pretrained",
-        "checkpoint": "modelA.pth",
+        "checkpoint": str(checkpoint),
         "override": {"type": "Constant", "name": "conv2d_2", "val": 3, "bias": 4},
     }
 

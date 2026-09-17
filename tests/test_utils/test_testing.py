@@ -159,7 +159,8 @@ def test_check_python_script(capsys):
     mmcv2.utils.check_python_script("./tests/data/scripts/hello.py zz")
     captured = capsys.readouterr().out
     assert captured == "hello zz!\n"
-    mmcv2.utils.check_python_script("./tests/data/scripts/hello.py agent")
+    with pytest.warns(UserWarning, match="I have a secret!"):
+        mmcv2.utils.check_python_script("./tests/data/scripts/hello.py agent")
     captured = capsys.readouterr().out
     assert captured == "hello agent!\n"
     # Make sure that wrong cmd raises an error

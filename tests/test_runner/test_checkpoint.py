@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from tempfile import TemporaryDirectory
 
 import pytest
 import torch
@@ -135,7 +134,7 @@ def test_get_state_dict():
     assert_tensor_equal(state_dict["conv.bias"], wrapped_model.module.conv.module.bias)
 
 
-def test_load_checkpoint_with_prefix():
+def test_load_checkpoint_with_prefix(tmp_path):
 
     class FooModule(nn.Module):
         def __init__(self):
@@ -152,17 +151,17 @@ def test_load_checkpoint_with_prefix():
     nn.init.constant_(model.conv2d_2.weight, 5)
     nn.init.constant_(model.conv2d_2.bias, 6)
 
-    with TemporaryDirectory():
-        torch.save(model.state_dict(), "model.pth")
-        prefix = "conv2d"
-        state_dict = _load_checkpoint_with_prefix(prefix, "model.pth")
-        assert torch.equal(model.conv2d.state_dict()["weight"], state_dict["weight"])
-        assert torch.equal(model.conv2d.state_dict()["bias"], state_dict["bias"])
+    checkpoint = tmp_path / "model.pth"
+    torch.save(model.state_dict(), checkpoint)
+    prefix = "conv2d"
+    state_dict = _load_checkpoint_with_prefix(prefix, str(checkpoint))
+    assert torch.equal(model.conv2d.state_dict()["weight"], state_dict["weight"])
+    assert torch.equal(model.conv2d.state_dict()["bias"], state_dict["bias"])
 
-        # test whether prefix is in pretrained model
-        with pytest.raises(AssertionError):
-            prefix = "back"
-            _load_checkpoint_with_prefix(prefix, "model.pth")
+    # test whether prefix is in pretrained model
+    with pytest.raises(AssertionError):
+        prefix = "back"
+        _load_checkpoint_with_prefix(prefix, str(checkpoint))
 
 
 def test_load_checkpoint():
