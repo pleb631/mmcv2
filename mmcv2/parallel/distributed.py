@@ -16,15 +16,18 @@ class _StepAdapter(nn.Module):
         self.model = model
 
     def forward(self, mode: str, *args, **kwargs) -> Any:
-        if mode == "train":
-            train_step = cast(Callable[..., Any], getattr(self.model, "train_step"))
-            return train_step(*args, **kwargs)
-        if mode == "val":
-            val_step = cast(Callable[..., Any], getattr(self.model, "val_step"))
-            return val_step(*args, **kwargs)
+        if mode == "training":
+            step = cast(Callable[..., Any], getattr(self.model, "training_step"))
+            return step(*args, **kwargs)
+        if mode == "validation":
+            step = cast(Callable[..., Any], getattr(self.model, "validation_step"))
+            return step(*args, **kwargs)
         if mode == "test":
-            test_step = cast(Callable[..., Any], getattr(self.model, "test_step"))
-            return test_step(*args, **kwargs)
+            step = cast(Callable[..., Any], getattr(self.model, "test_step"))
+            return step(*args, **kwargs)
+        if mode == "predict":
+            step = cast(Callable[..., Any], getattr(self.model, "predict_step"))
+            return step(*args, **kwargs)
         return self.model(*args, **kwargs)
 
 
@@ -65,14 +68,17 @@ class MMDistributedDataParallel(nn.Module):
     def forward(self, *args, **kwargs) -> Any:
         return self._call("forward", *args, **kwargs)
 
-    def train_step(self, *args, **kwargs) -> Any:
-        return self._call("train", *args, **kwargs)
+    def training_step(self, *args, **kwargs) -> Any:
+        return self._call("training", *args, **kwargs)
 
-    def val_step(self, *args, **kwargs) -> Any:
-        return self._call("val", *args, **kwargs)
+    def validation_step(self, *args, **kwargs) -> Any:
+        return self._call("validation", *args, **kwargs)
 
     def test_step(self, *args, **kwargs) -> Any:
         return self._call("test", *args, **kwargs)
+
+    def predict_step(self, *args, **kwargs) -> Any:
+        return self._call("predict", *args, **kwargs)
 
     def no_sync(self):
         return self._ddp.no_sync()

@@ -204,10 +204,10 @@ def test_ema_hook():
         def forward(self, x):
             return self.conv(x).sum()
 
-        def train_step(self, x, optimizer, **kwargs):
+        def training_step(self, x, batch_idx, **kwargs):
             return {"loss": self(x)}
 
-        def val_step(self, x, optimizer, **kwargs):
+        def validation_step(self, x, batch_idx, **kwargs):
             return {"loss": self(x)}
 
     loader = DataLoader(torch.ones((1, 1, 1, 1)))
@@ -1497,10 +1497,10 @@ def _build_demo_runner_without_hook(
         def forward(self, x):
             return self.linear(x)
 
-        def train_step(self, x, optimizer, **kwargs):
+        def training_step(self, x, batch_idx, **kwargs):
             return {"loss": self(x)}
 
-        def val_step(self, x, optimizer, **kwargs):
+        def validation_step(self, x, batch_idx, **kwargs):
             return {"loss": self(x)}
 
     model = Model()
@@ -1613,10 +1613,10 @@ def test_gradient_cumulative_optimizer_hook():
                 x = self.norm(x)
             return x
 
-        def train_step(self, x, optimizer, **kwargs):
+        def training_step(self, x, batch_idx, **kwargs):
             return {"loss": self(x).mean(), "num_samples": x.shape[0]}
 
-        def val_step(self, x, optimizer, **kwargs):
+        def validation_step(self, x, batch_idx, **kwargs):
             return {"loss": self(x).mean(), "num_samples": x.shape[0]}
 
     def build_toy_runner(config=None):

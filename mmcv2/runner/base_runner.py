@@ -4,7 +4,7 @@ import os.path as osp
 import random
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import ExitStack, contextmanager, nullcontext
 from typing import Any, cast, no_type_check
 
@@ -63,8 +63,8 @@ class BaseRunner(metaclass=ABCMeta):
         compile_cfg: bool | dict | None = None,
     ) -> None:
         step_model = model.module if is_module_wrapper(model) else model
-        if not hasattr(step_model, "train_step"):
-            raise TypeError("model must implement train_step()")
+        if not hasattr(step_model, "training_step"):
+            raise TypeError("model must implement training_step()")
 
         # check the type of `optimizer`
         if isinstance(optimizer, dict):
@@ -143,6 +143,67 @@ class BaseRunner(metaclass=ABCMeta):
                 if callable(context_factory):
                     stack.enter_context(cast(Any, context_factory(self)))
             yield
+
+    @property
+    def step_model(self) -> torch.nn.Module:
+        """Return the task model below an optional parallel wrapper."""
+
+        return self.model.module if is_module_wrapper(self.model) else self.model
+
+    def prepare_data_batch(self, data_batch: Any, dataloader_idx: int = 0) -> Any:
+        """Move a batch through the model's Lightning-style transfer hook."""
+
+        if is_module_wrapper(self.model):
+            return data_batch
+        transfer = getattr(self.step_model, "transfer_batch_to_device", None)
+        if not callable(transfer):
+            return data_batch
+        device = next(self.step_model.parameters(), torch.empty(0)).device
+        return transfer(data_batch, device, dataloader_idx)
+
+    @staticmethod
+    def _infer_batch_size(value: Any) -> int:
+        if isinstance(value, torch.Tensor) and value.ndim:
+            return int(value.shape[0])
+        if isinstance(value, Mapping):
+            for item in value.values():
+                try:
+                    return BaseRunner._infer_batch_size(item)
+                except ValueError:
+                    continue
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            for item in value:
+                try:
+                    return BaseRunner._infer_batch_size(item)
+                except ValueError:
+                    continue
+        raise ValueError("batch must contain a tensor with a batch dimension")
+
+    def format_step_output(self, output: Any, data_batch: Any, *, training: bool) -> dict[str, Any]:
+        """Normalize Lightning-style step results for MMCV optimizer hooks."""
+
+        tensor_output = isinstance(output, torch.Tensor)
+        if tensor_output:
+            result: dict[str, Any] = {"loss": output}
+        elif isinstance(output, Mapping):
+            result = dict(output)
+        elif training:
+            raise TypeError("training_step must return a tensor or mapping")
+        else:
+            result = {"predictions": output}
+        if training and "loss" not in result:
+            raise KeyError("training_step mapping must contain 'loss'")
+        if "num_samples" not in result:
+            result["num_samples"] = self._infer_batch_size(data_batch)
+        if "loss" in result:
+            loss = result["loss"]
+            if not isinstance(loss, torch.Tensor):
+                raise TypeError("step output 'loss' must be a tensor")
+            if training and tensor_output:
+                log_vars: dict[str, Any] = {}
+                log_vars.setdefault("loss", float(loss.detach()))
+                result["log_vars"] = log_vars
+        return result
 
     @staticmethod
     def _validate_workflow(workflow: list[tuple[str, int]]) -> None:

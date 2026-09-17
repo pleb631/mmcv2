@@ -25,10 +25,10 @@ def test_is_module_wrapper():
         def forward(self, x):
             return self.conv(x)
 
-        def train_step(self, x, optimizer=None):
+        def training_step(self, x, batch_idx):
             return {"mode": "train", "output": self(x)}
 
-        def val_step(self, x, optimizer=None):
+        def validation_step(self, x, batch_idx):
             return {"mode": "val", "output": self(x)}
 
         def test_step(self, x):
@@ -50,9 +50,9 @@ def test_is_module_wrapper():
         mmddp = MMDistributedDataParallel(model)
         assert is_module_wrapper(mmddp)
         assert mmddp.module is model
-        inputs = torch.ones(1, 2, 2, 2)
-        assert mmddp.train_step(inputs)["mode"] == "train"
-        assert mmddp.val_step(inputs)["mode"] == "val"
+        inputs = torch.ones(1, 2, 2, 2, device=next(model.parameters()).device)
+        assert mmddp.training_step(inputs, 0)["mode"] == "train"
+        assert mmddp.validation_step(inputs, 0)["mode"] == "val"
         assert mmddp.test_step(inputs)[0]["mode"] == "test"
     finally:
         dist.destroy_process_group()

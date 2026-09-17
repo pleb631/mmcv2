@@ -20,10 +20,10 @@ class OldStyleModel(nn.Module):
 
 
 class Model(OldStyleModel):
-    def train_step(self):
+    def training_step(self):
         pass
 
-    def val_step(self):
+    def validation_step(self):
         pass
 
 
@@ -74,8 +74,8 @@ def test_epoch_based_runner(runner_class):
         model = Model()
         _ = runner_class(model, logger=None)
 
-    with pytest.raises(TypeError, match="train_step"):
-        # model must implement the method train_step()
+    with pytest.raises(TypeError, match="training_step"):
+        # model must implement the method training_step()
         model = OldStyleModel()
         _ = runner_class(model, logger=logging.getLogger())
 

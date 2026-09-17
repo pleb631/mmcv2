@@ -21,7 +21,7 @@ from .logger import LoggerHook
 class EvalHook(Hook):
     """Run metric-based validation at a configured interval.
 
-    Models must implement ``test_step(data_batch)`` and return a sequence of
+    Models must implement ``validation_step(batch, batch_idx)`` and return a sequence of
     predictions/data samples. Metrics receive each batch incrementally through
     :class:`mmcv2.evaluator.Evaluator`; datasets do not own evaluation logic.
     """
@@ -140,14 +140,15 @@ class EvalHook(Hook):
     def _do_evaluate(self, runner) -> None:
         model = runner.model
         model.eval()
-        test_step = getattr(model, "test_step", None)
-        if not callable(test_step):
-            raise TypeError("model must implement test_step(data_batch)")
+        validation_step = getattr(model, "validation_step", None)
+        if not callable(validation_step):
+            raise TypeError("model must implement validation_step(batch, batch_idx)")
         with torch.inference_mode():
-            for data_batch in self.dataloader:
-                data_samples = test_step(data_batch)
+            for batch_idx, data_batch in enumerate(self.dataloader):
+                prepared = runner.prepare_data_batch(data_batch)
+                data_samples = validation_step(prepared, batch_idx)
                 if not isinstance(data_samples, Sequence) or isinstance(data_samples, (str, bytes, dict)):
-                    raise TypeError("test_step must return a sequence of data samples")
+                    raise TypeError("validation_step must return data samples")
                 self.evaluator.process(data_samples, data_batch)
         dataset = cast(Sized, self.dataloader.dataset)
         metrics = self.evaluator.evaluate(len(dataset))

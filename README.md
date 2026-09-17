@@ -25,7 +25,7 @@ The coverage gate starts at 50% and should only be raised as the suite grows.
 
 `examples/torchvision_classification.py` is a complete MMCV2 Runner example
 with CIFAR-10/100, MNIST, Fashion-MNIST, and torchvision `FakeData`. Its model
-implements `train_step`, `val_step`, and `test_step`; `EpochBasedRunner` drives
+implements `training_step`, `validation_step`, and `test_step`; `EpochBasedRunner` drives
 training, while optimizer, AMP, LR scheduling, validation, logging, and
 checkpointing are composed from MMCV2 hooks. It supports single-device
 training, single-node `MMDistributedDataParallel`, gradient accumulation and

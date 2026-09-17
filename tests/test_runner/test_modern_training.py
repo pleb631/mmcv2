@@ -29,7 +29,7 @@ class StepModel(nn.Module):
     def forward(self, x):
         return self.linear(x)
 
-    def train_step(self, x, optimizer):
+    def training_step(self, x, batch_idx):
         output = self(x)
         return {
             "loss": output.square().mean(),
@@ -37,8 +37,8 @@ class StepModel(nn.Module):
             "output_dtype": output.dtype,
         }
 
-    def val_step(self, x, optimizer):
-        return self.train_step(x, optimizer)
+    def validation_step(self, x, batch_idx):
+        return self.training_step(x, batch_idx)
 
 
 def test_bf16_forward_and_fp16_scaler_selection(tmp_path):
@@ -82,7 +82,7 @@ def test_accumulation_step_boundaries_and_set_to_none():
     hook.before_run(runner)
     for index in range(5):
         runner.iter = index
-        runner.outputs = model.train_step(torch.ones(2, 2), optimizer)
+        runner.outputs = model.training_step(torch.ones(2, 2), index)
         hook.after_train_iter(runner)
         assert runner._optimizer_step_boundary == (index in (1, 3, 4))
     assert optimizer.step.call_count == 3
@@ -106,9 +106,9 @@ def test_runner_wraps_accumulation_forward_and_backward_in_no_sync(tmp_path):
             finally:
                 self.sync_disabled = False
 
-        def train_step(self, x, optimizer):
+        def training_step(self, x, batch_idx):
             self.forward_sync_states.append(self.sync_disabled)
-            return super().train_step(x, optimizer)
+            return super().training_step(x, batch_idx)
 
     model = SyncTrackingModel()
     runner = EpochBasedRunner(
@@ -140,7 +140,7 @@ def test_runner_compile_config_targets_underlying_module(tmp_path):
     model.compile.assert_called_once_with(backend="eager", dynamic=True)
 
 
-def test_runner_compiled_model_executes_train_step(tmp_path):
+def test_runner_compiled_model_executes_training_step(tmp_path):
     model = StepModel()
     runner = EpochBasedRunner(
         model,

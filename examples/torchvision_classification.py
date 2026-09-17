@@ -96,8 +96,8 @@ class ClassificationModel(nn.Module):
         logits = self(images)
         return F.cross_entropy(logits, targets), logits, targets
 
-    def train_step(self, data_batch: Sequence[torch.Tensor], optimizer: torch.optim.Optimizer) -> dict[str, Any]:
-        del optimizer  # Optimization is owned by MMCV2's OptimizerHook.
+    def training_step(self, data_batch: Sequence[torch.Tensor], batch_idx: int) -> dict[str, Any]:
+        del batch_idx  # Optimization is owned by MMCV2's OptimizerHook.
         loss, logits, targets = self._step(data_batch)
         accuracy = (logits.argmax(dim=1) == targets).float().mean() * 100
         return {
@@ -106,10 +106,8 @@ class ClassificationModel(nn.Module):
             "num_samples": targets.size(0),
         }
 
-    def val_step(self, data_batch: Sequence[torch.Tensor], optimizer: torch.optim.Optimizer) -> dict[str, Any]:
-        return self.train_step(data_batch, optimizer)
-
-    def test_step(self, data_batch: Sequence[torch.Tensor]) -> list[dict[str, float | int]]:
+    def validation_step(self, data_batch: Sequence[torch.Tensor], batch_idx: int) -> list[dict[str, float | int]]:
+        del batch_idx
         images, targets = self._prepare_batch(data_batch)
         logits = self(images)
         losses = F.cross_entropy(logits, targets, reduction="none")
@@ -118,6 +116,9 @@ class ClassificationModel(nn.Module):
             {"pred": int(prediction), "target": int(target), "loss": float(loss)}
             for prediction, target, loss in zip(predictions, targets, losses)
         ]
+
+    def test_step(self, data_batch: Sequence[torch.Tensor]) -> list[dict[str, float | int]]:
+        return self.validation_step(data_batch, batch_idx=0)
 
 
 class ClassificationMetric(BaseMetric):

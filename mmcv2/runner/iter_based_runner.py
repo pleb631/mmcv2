@@ -83,11 +83,11 @@ class IterBasedRunner(BaseRunner):
         self.data_batch = data_batch
         self.call_hook("before_train_iter")
         with self.optim_context():
+            data_batch = self.prepare_data_batch(data_batch)
             with self.autocast_context():
-                train_step = cast(Callable[..., dict[str, Any]], getattr(self.model, "train_step"))
-                outputs = train_step(data_batch, self.optimizer, **kwargs)
-            if not isinstance(outputs, dict):
-                raise TypeError("model.train_step() must return a dict")
+                training_step = getattr(self.model, "training_step")
+                step_output = training_step(data_batch, self.inner_iter)
+            outputs = self.format_step_output(step_output, data_batch, training=True)
             if "log_vars" in outputs:
                 self.log_buffer.update(outputs["log_vars"], outputs["num_samples"])
             self.outputs = outputs
@@ -105,10 +105,10 @@ class IterBasedRunner(BaseRunner):
         data_batch = next(data_loader)
         self.data_batch = data_batch
         self.call_hook("before_val_iter")
-        val_step = cast(Callable[..., dict[str, Any]], getattr(self.model, "val_step"))
-        outputs = val_step(data_batch, **kwargs)
-        if not isinstance(outputs, dict):
-            raise TypeError("model.val_step() must return a dict")
+        data_batch = self.prepare_data_batch(data_batch)
+        validation_step = getattr(self.model, "validation_step")
+        step_output = validation_step(data_batch, self.inner_iter)
+        outputs = self.format_step_output(step_output, data_batch, training=False)
         if "log_vars" in outputs:
             self.log_buffer.update(outputs["log_vars"], outputs["num_samples"])
         self.outputs = outputs

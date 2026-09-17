@@ -1,7 +1,6 @@
 import os.path as osp
 import platform
 import shutil
-from collections.abc import Callable
 from contextlib import nullcontext
 from typing import Any, cast
 
@@ -25,15 +24,15 @@ class EpochBasedRunner(BaseRunner):
 
     def run_iter(self, data_batch: Any, train_mode: bool, **kwargs) -> None:
         """Run one training or validation batch."""
+        data_batch = self.prepare_data_batch(data_batch)
         with self.autocast_context() if train_mode else nullcontext():
             if train_mode:
-                train_step = cast(Callable[..., dict[str, Any]], getattr(self.model, "train_step"))
-                outputs = train_step(data_batch, self.optimizer, **kwargs)
+                step = getattr(self.model, "training_step")
+                step_output = step(data_batch, self.inner_iter)
             else:
-                val_step = cast(Callable[..., dict[str, Any]], getattr(self.model, "val_step"))
-                outputs = val_step(data_batch, self.optimizer, **kwargs)
-        if not isinstance(outputs, dict):
-            raise TypeError('"model.train_step()" and "model.val_step()" must return a dict')
+                step = getattr(self.model, "validation_step")
+                step_output = step(data_batch, self.inner_iter)
+        outputs = self.format_step_output(step_output, data_batch, training=train_mode)
         if "log_vars" in outputs:
             self.log_buffer.update(outputs["log_vars"], outputs["num_samples"])
         self.outputs = outputs

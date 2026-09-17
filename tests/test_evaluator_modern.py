@@ -30,7 +30,7 @@ def test_evaluator_offline_and_structured_samples():
     assert evaluator.metrics[0].results == []
 
 
-def test_eval_hook_streams_test_step_outputs_into_evaluator():
+def test_eval_hook_streams_validation_step_outputs_into_evaluator():
     class Dataset:
         def __len__(self):
             return 2
@@ -42,7 +42,7 @@ def test_eval_hook_streams_test_step_outputs_into_evaluator():
         def eval(self):
             return self
 
-        def test_step(self, data_batch):
+        def validation_step(self, data_batch, batch_idx):
             return [{"pred": int(index == 0), "target": 1} for index in data_batch.tolist()]
 
     evaluator = Evaluator(Accuracy())
@@ -51,6 +51,7 @@ def test_eval_hook_streams_test_step_outputs_into_evaluator():
         model=Model(),
         log_buffer=LogBuffer(),
         message_hub=MessageHub("evaluation-test"),
+        prepare_data_batch=lambda batch: batch,
     )
     hook._do_evaluate(runner)
     assert runner.log_buffer.output["classification/accuracy"] == 0.5
