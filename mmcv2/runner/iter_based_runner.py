@@ -13,6 +13,7 @@ from mmcv2.utils import is_list_of, symlink
 from .base_runner import BaseRunner
 from .builder import RUNNERS
 from .checkpoint import save_checkpoint
+from .context import activate_runner_context
 from .hooks import IterTimerHook
 from .utils import get_host_info
 
@@ -116,6 +117,7 @@ class IterBasedRunner(BaseRunner):
         del self.data_batch
         self._inner_iter += 1
 
+    @activate_runner_context
     def run(
         self,
         data_loaders: list[DataLoader],

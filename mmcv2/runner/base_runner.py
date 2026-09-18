@@ -18,6 +18,7 @@ from ..logging import MessageHub
 from ..parallel import is_module_wrapper
 from ..utils import build_from_cfg, mkdir_or_exist
 from .checkpoint import load_checkpoint
+from .context import RunnerContext
 from .hooks import HOOKS, Hook, ParamSchedulerHook
 from .log_buffer import LogBuffer
 from .priority import Priority, get_priority
@@ -121,6 +122,7 @@ class BaseRunner(metaclass=ABCMeta):
         self._max_iters = max_iters
         # MessageHub owns runtime state; LogBuffer is used only by legacy hooks.
         self.log_buffer = LogBuffer(self.message_hub)
+        self.ctx = RunnerContext(self)
 
     @property
     def model_name(self) -> str:
@@ -148,7 +150,7 @@ class BaseRunner(metaclass=ABCMeta):
     def step_model(self) -> torch.nn.Module:
         """Return the task model below an optional parallel wrapper."""
 
-        return self.model.module if is_module_wrapper(self.model) else self.model
+        return cast(torch.nn.Module, self.model.module if is_module_wrapper(self.model) else self.model)
 
     def prepare_data_batch(self, data_batch: Any, dataloader_idx: int = 0) -> Any:
         """Move a batch through the model's Lightning-style transfer hook."""

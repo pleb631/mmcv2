@@ -21,6 +21,23 @@ pytest --cov=mmcv2 --cov-report=term-missing
 
 The coverage gate starts at 50% and should only be raised as the suite grows.
 
+## Runner context
+
+Every runner exposes a non-owning, read-only view of its live training state as
+`runner.ctx`. During `runner.run(...)`, code anywhere in the same execution
+context can obtain that view with `RunnerContext.current()`:
+
+```python
+from mmcv2.runner import RunnerContext
+
+ctx = RunnerContext.current()
+print(ctx.model, ctx.optimizer, ctx.dataset, ctx.epoch, ctx.iter)
+```
+
+The context resolves values from the runner on access, so it always reflects
+the latest batch, outputs, mode, and progress. Retaining a context does not keep
+the runner, model, optimizer, or dataloader alive.
+
 ## Torchvision classification demo
 
 `examples/torchvision_classification.py` is a complete MMCV2 Runner example

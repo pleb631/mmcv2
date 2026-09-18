@@ -29,6 +29,7 @@ class RunnerLike(Protocol):
     timestamp: str
     log_buffer: Any
     message_hub: Any
+    ctx: Any
     amp_dtype: Any
     _hooks: list[Any]
     _max_epochs: int

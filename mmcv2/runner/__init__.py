@@ -10,6 +10,7 @@ from .checkpoint import (
     save_checkpoint,
     weights_to_cpu,
 )
+from .context import RunnerContext
 from .default_constructor import DefaultRunnerConstructor
 from .epoch_based_runner import EpochBasedRunner
 from .hooks import (
@@ -113,6 +114,7 @@ __all__ = [
     "PolyLrUpdaterHook",
     "Priority",
     "RunnerLike",
+    "RunnerContext",
     "Sequential",
     "StepLrUpdaterHook",
     "StepMomentumUpdaterHook",
