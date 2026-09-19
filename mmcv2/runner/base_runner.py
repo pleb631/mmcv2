@@ -152,16 +152,29 @@ class BaseRunner(metaclass=ABCMeta):
 
         return cast(torch.nn.Module, self.model.module if is_module_wrapper(self.model) else self.model)
 
-    def prepare_data_batch(self, data_batch: Any, dataloader_idx: int = 0) -> Any:
-        """Move a batch through the model's Lightning-style transfer hook."""
+    def prepare_data_batch(
+        self,
+        data_batch: Any,
+        dataloader_idx: int = 0,
+        *,
+        training: bool = False,
+    ) -> Any:
+        """Move and preprocess a batch before invoking a task step.
+
+        Parallel wrappers perform both operations after scattering to their
+        target device, so the runner leaves their input untouched here.
+        """
 
         if is_module_wrapper(self.model):
             return data_batch
         transfer = getattr(self.step_model, "transfer_batch_to_device", None)
-        if not callable(transfer):
-            return data_batch
-        device = next(self.step_model.parameters(), torch.empty(0)).device
-        return transfer(data_batch, device, dataloader_idx)
+        if callable(transfer):
+            device = next(self.step_model.parameters(), torch.empty(0)).device
+            data_batch = transfer(data_batch, device, dataloader_idx)
+        preprocess = getattr(self.step_model, "preprocess_batch", None)
+        if callable(preprocess):
+            data_batch = preprocess(data_batch, training=training)
+        return data_batch
 
     @staticmethod
     def _infer_batch_size(value: Any) -> int:

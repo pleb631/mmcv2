@@ -84,7 +84,7 @@ class IterBasedRunner(BaseRunner):
         self.data_batch = data_batch
         self.call_hook("before_train_iter")
         with self.optim_context():
-            data_batch = self.prepare_data_batch(data_batch)
+            data_batch = self.prepare_data_batch(data_batch, training=True)
             with self.autocast_context():
                 training_step = getattr(self.model, "training_step")
                 step_output = training_step(data_batch, self.inner_iter)
@@ -106,7 +106,7 @@ class IterBasedRunner(BaseRunner):
         data_batch = next(data_loader)
         self.data_batch = data_batch
         self.call_hook("before_val_iter")
-        data_batch = self.prepare_data_batch(data_batch)
+        data_batch = self.prepare_data_batch(data_batch, training=False)
         validation_step = getattr(self.model, "validation_step")
         step_output = validation_step(data_batch, self.inner_iter)
         outputs = self.format_step_output(step_output, data_batch, training=False)

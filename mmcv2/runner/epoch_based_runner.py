@@ -25,7 +25,7 @@ class EpochBasedRunner(BaseRunner):
 
     def run_iter(self, data_batch: Any, train_mode: bool, **kwargs) -> None:
         """Run one training or validation batch."""
-        data_batch = self.prepare_data_batch(data_batch)
+        data_batch = self.prepare_data_batch(data_batch, training=train_mode)
         with self.autocast_context() if train_mode else nullcontext():
             if train_mode:
                 step = getattr(self.model, "training_step")

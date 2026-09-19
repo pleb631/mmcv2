@@ -16,6 +16,13 @@ class _StepAdapter(nn.Module):
         self.model = model
 
     def forward(self, mode: str, *args, **kwargs) -> Any:
+        if mode in {"training", "validation", "test", "predict"} and args:
+            preprocess = getattr(self.model, "preprocess_batch", None)
+            if callable(preprocess):
+                args = (
+                    preprocess(args[0], training=mode == "training"),
+                    *args[1:],
+                )
         if mode == "training":
             step = cast(Callable[..., Any], getattr(self.model, "training_step"))
             return step(*args, **kwargs)
